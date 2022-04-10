@@ -7,19 +7,11 @@ from scipy.io.wavfile import read,write
 
 def roundcom(a):
     return np.round(a.real,5)+np.round(a.imag,5)*1j
-def bintotext(a):
-    a=np.reshape(a,(len(a)//8,8)).astype(np.int32)
-    b=np.packbits(a)
-    c=""
-    for i in b:
-        c+=chr(int(i)) 
-    return c
+
 def inttofloat32(a:np.ndarray):
     data=np.iinfo(a.dtype)
     khoang=2
     khoangchia=data.max-data.min
-    print(khoang)
-    print(khoangchia)
     k=khoang/khoangchia
     v=[i*k for i in a]
     v=np.array(v,np.float32)
@@ -27,7 +19,7 @@ def inttofloat32(a:np.ndarray):
 
 
 #Load audio
-audiofile ="MusicLong"
+audiofile ="Text_Stuff/Input_4"
 fs , data = read(audiofile+".wav")
 print(data.dtype)
 if data.dtype!=np.float32:
@@ -37,27 +29,29 @@ if data.dtype!=np.float32:
 if np.ndim(data)==2:
     data=data[:,1]
 
-textfile='texttostego.txt'
+#Load text
+textfile='Text_Stuff/texttostego.txt'
 txt=open(textfile,'r')
 msg=txt.read()
 txt.close()
 
+#Convert text into Binary
 msgbin = np.ravel([[int(y) for y in format(ord(x), '08b')] for x in msg])
 msgbinlen=len(msgbin)
-#print(bintotext(msgbin))
+
 
 
 seglen = int(2**np.ceil(np.log2(2*msgbinlen)))
 segnum = int(np.floor(len(data)/seglen))
 print(seglen * segnum <= len(data))
 
-
+#Convert Binary into Phi (0==pi/2 and 1==-pi/2)
 msgPhi = msgbin.copy()
 msgPhi[msgPhi == 0] = -1
 msgPhi = msgPhi * -(np.pi/2)
 
 
-
+#Create segments
 segments = data[0:segnum*seglen].reshape((segnum,seglen))
 fsegments = fft(segments)
 fsegments = roundcom(fsegments)
@@ -66,65 +60,46 @@ Phi = np.angle(fsegments)
 NewPhi=Phi.copy()
 
 
-
+#Calculate the difference in each segments
 DeltaPhi=np.diff(Phi,axis=0)
 
-
+#Put the PhiBinary into the first segment
 segmid = seglen // 2
 NewPhi[0,-msgbinlen+segmid:segmid] = msgPhi
 NewPhi[0,segmid+1:segmid+1+msgbinlen] = -msgPhi[::-1]
 
-print(segnum," ",seglen)
-
+#Reconstuct the Phi matrix 
 for i in range(1, segnum): 
     NewPhi[i,:] = NewPhi[i-1,:] + DeltaPhi[i-1,:]
 
-"""
-d=NewPhi[0,-msgbinlen+segmid:segmid]/-(np.pi/2)
-d[d==-1]=0
-print(bintotext(d))
-"""
 
-
+#Ifft back to time domain
 coded= (A * np.exp(1j*NewPhi))   
 coded=roundcom(coded)
 ang=np.angle(coded)
 #print(ang[0,-msgbinlen+segmid:segmid])
 codedwav=np.real(ifft(coded))
 datanew=np.ravel(codedwav)
-print(datanew[0:50])
-"""
-vl=fft(codedwav)
-vl=roundcom(vl)
-vlm=np.absolute(vl)
-vla=np.angle(vl)
 
+#Create the output wav file
+outfile="_stego.wav"
+write(audiofile+outfile,fs,np.array(datanew,dtype=np.float32))
 
-print(vla[0,-msgbinlen+segmid:segmid])
-
-"""
-"""
-
-"""
+#Ploting the signal
 fig, axs = plt.subplots(1,2)
 fig.tight_layout()
 fig.set_size_inches(18, 5)
 axs[0].plot(np.arange(0,len(data[0:segnum*seglen])),data[0:segnum*seglen],color='b')
 axs[0].set_title(audiofile+".wav")
 axs[1].plot(np.arange(0,len(data[0:segnum*seglen])),datanew,color='r')
-axs[1].set_title("TextStego.wav")
-plt.savefig("Compare.png", dpi = 100)
+axs[1].set_title(audiofile+outfile)
+plt.savefig("Text_Stuff/Compare.png", dpi = 100)
 plt.show()
-outfile="_stego.wav"
-write(audiofile+outfile,fs,np.array(datanew,dtype=np.float32))
 
-print("Phase Coding Complete !!!\n",len(msg),"characters in",outfile)
 
-"""
-test=datanew.reshape((segnum,seglen))
-phitest=np.angle(roundcom(fft(test)))
-phitest2 = phitest[0,-msgbinlen+segmid:segmid]
-d=phitest2/-(np.pi/2)
-d[d==-1]=0
-print(bintotext(d))
-"""
+
+
+
+
+print("Phase encoding Complete !!!\n",len(msg),"characters in",outfile)
+

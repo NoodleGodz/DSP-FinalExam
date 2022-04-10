@@ -1,0 +1,1 @@
+Every Hermitian symmetric space is a homogeneous space for its isometry group and has a unique decomposition as a product of irreducible spaces and a Euclidean space. 

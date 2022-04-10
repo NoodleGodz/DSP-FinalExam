@@ -18,13 +18,13 @@ def bintotext(a):
 
 
 #Load audio
-audiofile ="MusicLong"
+audiofile ="Text_Stuff/Input_4"
 audiotail ="_stego.wav"
 fs , data = read(audiofile+audiotail)
 
 
 
-
+#Should enter the numbers of characters in _stego.wav here
 msglen=167
 msgbinlen = 8 * msglen
 seglen = int(2**np.ceil(np.log2(2*msgbinlen)))
@@ -46,7 +46,7 @@ print(msg)
 
 
 
-txt=open("Output.txt",'w')
+txt=open("Text_Stuff/Output.txt",'w')
 txt.write(msg)
 txt.close()
 
